@@ -1,0 +1,9 @@
+certifi
+Flask
+flask_wtf
+Jinja2
+Python-EasyConfig
+requests
+Werkzeug
+WTForms
+simple_image_download
