@@ -5,7 +5,6 @@ setup(
     packages=['lingvo_time'],
     include_package_data=True,
     install_requires=[
-        'flask', 'wtforms', 'werkzeug', 'click',
-        'requests', 'progressbar', 'python-magic-bin==0.4.14'
+        'flask', 'wtforms', 'werkzeug', 'click', 'requests', 'progressbar', 'python-magic', 'flask_wtf'
     ],
 )

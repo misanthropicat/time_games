@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Time games</title>
+</head>
+<body>
+<header class=”header”>
+    <h1>Hey, boy! Your exercises run is started now!</h1>
+    <p align="left">Current time: {{ start_time }}</p>
+</header>
+<div class=”content”>
+    {% block content %}
+        <p> {{ form.level.label }}: {{ form.level }} </p>
+        <p> {{ form.game_type.label }}: {{ form.game_type }}</p>
+        <p> {{ form.next }} </p>
+    {% endblock %}
+</div>
+
+
+<footer class=”footer”>
+</footer>
+</body>
+</html>

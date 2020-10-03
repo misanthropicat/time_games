@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Word Game</title>
+</head>
+<body>
+<h2>Your word: {{ task }}</h2>
+<form action="" method="post" novalidate>
+    <input type="hidden" name="task" value={{ task }}>
+    <p>
+        {{ form.missed_letter.label }}<br>
+        {{ form.missed_letter }}
+        <a href="{{ url_for('check_lingvo', run_id=run_id, task_id=task_id) }}">Check</a>
+    </p>
+</form>
+</body>
+</html>
