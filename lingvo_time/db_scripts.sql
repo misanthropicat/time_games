@@ -14,5 +14,7 @@ CREATE table runs (
     run_id not null primary key,
     run_created real,
     runtime real,
-    play_time real
+    play_time_sec integer,
+    game_type varchar(25),
+    level integer
 );

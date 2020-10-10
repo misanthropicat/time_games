@@ -9,11 +9,13 @@
     <p align="left">Current time: {{ start_time }}</p>
 </header>
 <div class=”content”>
+    <form method="POST">
     {% block content %}
         <p> {{ form.level.label }}: {{ form.level }} </p>
         <p> {{ form.game_type.label }}: {{ form.game_type }}</p>
-        <p> {{ form.next }} </p>
+        <p> {{ form.start }} </p>
     {% endblock %}
+    </form>
 </div>
 
 
