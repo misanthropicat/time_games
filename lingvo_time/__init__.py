@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 
 from simple_image_download import simple_image_download as simp
-from flask import Flask, g, redirect, request, render_template, flash, url_for
+from flask import Flask, g, redirect, request, render_template, flash, url_for, get_template_attribute
 from flask_wtf import FlaskForm
 from werkzeug.middleware.proxy_fix import ProxyFix
 from wtforms import StringField, SelectField, SubmitField
@@ -34,6 +34,7 @@ class WordForm(FlaskForm):
     task = StringField(label='Task', validators=[DataRequired()])
     missed_letter = StringField(label='Missed letter', validators=[DataRequired()])
     spaced = HiddenInput()
+    task_id = HiddenInput()
     next = SubmitField(label='Next word')
 
 
@@ -44,6 +45,7 @@ class MainForm(FlaskForm):
                             choices=[('lingvo_task', 'Lingvo game'),
                                      ('math_task', 'Math game')])
     run_id = HiddenInput()
+    start = SubmitField(label='Start')
 
 
 def get_db():
@@ -87,7 +89,7 @@ def dict_factory(cursor, row):
     return d
 
 
-def create_task(run_id):
+def create_lingvo_task(run_id):
     word = random.choice(WORDS)
     task_id = str(uuid.uuid4())
     spaced = random.randint(0, len(word))
@@ -120,14 +122,13 @@ def start_run():
                  "(run_id, runtime, play_time_sec, level, game_type) VALUES "
                  "(?, datetime('now'), 0, ?, ?)",
                  (run_id, c_level.data, game_type.data))
-        return redirect(url_for('lingvo_task', run_id=run_id))
+        return redirect(url_for(game_type.data, run_id=run_id))
     return render_template('index.html', form=form, start_time=datetime.now())
 
 
 @app.route('/run/<run_id>/lingvo', methods=['GET', 'POST'])
-@app.route('/run/<run_id>/lingvo/<task_id>')
-def lingvo_task(run_id, task_id=''):
-    def _check():
+def lingvo_task(run_id):
+    def _check(task_id: str):
         result = request.form['task'].replace('_', request.form['missed_letter'])
         correct_answer = query_db("SELECT word from lingvo_exercises WHERE ex_id = ?", (task_id,))
         if result.find(correct_answer['word']) == 0:
@@ -138,16 +139,14 @@ def lingvo_task(run_id, task_id=''):
                                         (run_id,))
             query_db("UPDATE runs SET play_time_sec ?",
                      (round(current_playtime + mined_time),))
-            flash(f"You're right. Great job!\nPlay time increased by {mined_time} seconds")
+            flash(f"You're right. Great job!\nPlay time is increased by {mined_time} seconds")
         flash(f"You're mistaken. Correct answer is {correct_answer}")
-        return redirect(url_for('lingvo_task'), run_id)
+        return redirect(url_for('lingvo_task', run_id=run_id))
 
     form = WordForm()
     if request.method == 'POST':
-        redirect(url_for('lingvo_task', run_id=run_id, task_id=task_id))
-    if form.validate_on_submit():
-        _check()
-    task_id = create_task(run_id)
+        _check(get_template_attribute('lingvo_game.html', 'task_id'))
+    task_id = create_lingvo_task(run_id)
     result = query_db("SELECT word, spaced "
                       "FROM lingvo_exercises "
                       "WHERE ex_id = ?", (task_id,), one=True)
@@ -155,7 +154,7 @@ def lingvo_task(run_id, task_id=''):
     spaced = int(result['spaced'])
     form.answer = word[spaced]
     form.task = f'{word[0:spaced]}_{word[spaced + 1:]}'
-    return render_template('lingvo_game.html', form=form)
+    return render_template('lingvo_game.html', form=form, task_id=task_id)
 
 
 def get_mark(mark):

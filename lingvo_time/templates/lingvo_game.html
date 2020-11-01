@@ -9,10 +9,13 @@
     <h2>Task: {{ form.task }}</h2>
 </header>
 <div class=”content”>
+    <form method="POST">
     {% block content %}
         <p> {{ form.missed_letter.label }}: {{ form.missed_letter }} </p>
-        <p> <button type=submit class="btn btn-primary"><span class="oi oi-check" title="Submit"></span></button> </p>
+        <p> {{ form.next }}</p>
     {% endblock %}
+    {% macro task_id(task_id) %}Task_id {{ task_id }}!{% endmacro %}
+    </form>
 </div>
 
 
