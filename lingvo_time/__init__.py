@@ -6,7 +6,7 @@ from datetime import datetime
 import random
 from lingvo_time.forms import MainForm, WordForm, MathForm
 from simple_image_download import simple_image_download as simp
-from flask import Flask, g, redirect, request, render_template, url_for, get_template_attribute, flash
+from flask import Flask, g, redirect, request, render_template, url_for, flash
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 module_dir = os.path.join(os.getcwd(), 'lingvo_time')
@@ -50,6 +50,7 @@ def query_db(query, args=(), one=False):
     cur.execute(query, args)
     rv = cur.fetchall()
     cur.close()
+    get_db().commit()
     return (rv[0] if rv else None) if one else rv
 
 
@@ -60,10 +61,8 @@ def dict_factory(cursor, row):
     return d
 
 
-def create_lingvo_task(run_id):
-    complexity = query_db("SELECT level FROM runs "
-                          "WHERE run_id = ?", (run_id,), one=True)
-    level = complexity.split(' ')[1]
+def create_lingvo_task(run_id, complexity):
+    level = round(complexity / 0.75)
     WORDS = codecs.open(os.path.join(module_dir, f'level{level}.txt'), encoding='utf-8').read().splitlines()
     word = random.choice(WORDS)
     task_id = str(uuid.uuid4())
@@ -76,20 +75,18 @@ def create_lingvo_task(run_id):
     return task, word[spaced], task_id
 
 
-def create_math_task(run_id):
-    task = ""
-    complexity = query_db("SELECT level FROM runs "
-                          "WHERE run_id = ?", (run_id,), one=True)
+def create_math_task(run_id, complexity):
     a, b = random.choice(range(2, 10 * complexity)), random.choice(range(2, 10 * complexity))
     randomized_task = random.choice(['+', '-'])
     result = 0
+    task = ''
     if randomized_task == '+':
         result = a + b
         task += f"{a} + {b}"
         if complexity in range(3, 5):
             c = random.choice(range(2, 10 * complexity))
             result += c
-            task += f" + {c}".format(c)
+            task += f" + {c}"
     if randomized_task == '-':
         a, b = (a, b) if a > b else (b, a)
         result = a - b
@@ -132,8 +129,11 @@ def start_run():
 
 @app.route('/run/<run_id>/<game_type>', methods=['GET'], endpoint='create_task')
 def create_task(run_id, game_type):
+    run_info = query_db("SELECT level FROM runs "
+                        "WHERE run_id = ?", (run_id,), one=True)
+    complexity = run_info[0]['level']
     if game_type == 'lingvo':
-        task, answer, task_id = create_lingvo_task(run_id)
+        task, answer, task_id = create_lingvo_task(run_id, complexity)
         redirect(url_for('check_task', run_id=run_id, game_type='lingvo', task_id=task_id))
     elif game_type == 'math':
         task, result, task_id = create_math_task(run_id)
