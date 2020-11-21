@@ -3,14 +3,14 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Word Game</title>
+    <title>Math Game</title>
 </head>
 <body>
     {% block content %}
         <h2>Task: {{ form.task }}</h2>
         <div class=”content”>
         <form method="POST">
-            <p> {{ form.missed_letter.label }}: {{ form.missed_letter }} </p>
+            <p> {{ form.result.label }}: {{ form.result }} </p>
         </form>
         </div>
     {% endblock %}

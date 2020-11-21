@@ -1,23 +1,20 @@
 <!DOCTYPE html>
+{% extends "base.html" %}
 <html>
-<head>
-    <title>Time games</title>
-</head>
 <body>
+{% block content %}
 <header class=”header”>
     <h1>Hey, boy! Your exercises run is started now!</h1>
     <p align="left">Current time: {{ start_time }}</p>
 </header>
 <div class=”content”>
     <form method="POST">
-    {% block content %}
         <p> {{ form.level.label }}: {{ form.level }} </p>
         <p> {{ form.game_type.label }}: {{ form.game_type }}</p>
         <p> {{ form.start }} </p>
-    {% endblock %}
     </form>
 </div>
-
+{% endblock %}
 
 <footer class=”footer”>
 </footer>
