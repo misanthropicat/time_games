@@ -10,7 +10,7 @@
         <h2>Task: {{ form.task }}</h2>
         <div class=”content”>
         <form method="POST">
-            <p> {{ form.missed_letter.label }}: {{ form.missed_letter }} </p>
+            <p> {{ form.missed_letter.label }}: {{ form.missed_letter }} {{ form.next }}</p>
         </form>
         </div>
     {% endblock %}

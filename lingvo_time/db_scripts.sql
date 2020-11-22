@@ -7,7 +7,9 @@ create table lingvo_exercises (
     run_id not null,
     word varchar(100),
     spaced integer,
+    task_created real,
     last_updated real,
+    answer varchar(1),
     foreign key (run_id) references runs(run_id)
 );
 
@@ -17,7 +19,7 @@ create table runs (
     runtime real,
     play_time_sec integer,
     game_type varchar(25),
-    level real
+    complexity real
 );
 
 create table math_exercises (
@@ -25,6 +27,8 @@ create table math_exercises (
     run_id not null,
     task varchar(100),
     expected integer,
+    task_created real,
     last_updated real,
+    result integer,
     foreign key (run_id) references runs(run_id)
 )
