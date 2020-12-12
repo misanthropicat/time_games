@@ -3,7 +3,7 @@ drop table if exists math_exercises;
 drop table if exists runs;
 
 create table lingvo_exercises (
-    ex_id primary key not null,
+    task_id primary key not null,
     run_id not null,
     word varchar(100),
     spaced integer,
@@ -23,7 +23,7 @@ create table runs (
 );
 
 create table math_exercises (
-    ex_id not null primary key,
+    task_id not null primary key,
     run_id not null,
     task varchar(100),
     expected integer,

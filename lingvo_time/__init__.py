@@ -20,6 +20,8 @@ app.config.from_mapping(
 )
 app.secret_key = 'super secret key'
 
+base_task_time = 30
+
 
 def get_db():
     if 'db' not in g:
@@ -63,15 +65,24 @@ def dict_factory(cursor, row):
     return d
 
 
+def generate_lingvo_level(level: int):
+    nouns = codecs.open(os.path.join(module_dir, f'nouns.txt'), encoding='utf-8').read().splitlines()
+    verbs = codecs.open(os.path.join(module_dir, f'verbs.txt'), encoding='utf-8').read().splitlines()
+    start_pos = 25 * (level - 1)
+    end_pos = start_pos + 25
+    return nouns[start_pos: end_pos] + verbs[start_pos: end_pos]
+
+
 def create_lingvo_task(run_id, level):
-    WORDS = codecs.open(os.path.join(module_dir, f'level{level}.txt'), encoding='utf-8').read().splitlines()
-    word = random.choice(WORDS)
+    words = generate_lingvo_level(level)
+    random.shuffle(words)
+    word = words.pop()
     task_id = str(uuid.uuid4())
-    spaced = random.randint(0, len(word))
+    spaced = random.randint(0, len(word) - 1)
     cur_time = datetime.timestamp(datetime.now())
-    query_db("INSERT INTO lingvo_exercises (ex_id, run_id, word, spaced, task_created, "
-             "last_updated) VALUES (?, ?, ?, ?, ?)",
-             (task_id, run_id, word, spaced, cur_time, cur_time))
+    query_db("INSERT INTO lingvo_exercises (task_id, run_id, word, spaced, task_created, "
+             "last_updated, answer) VALUES (?, ?, ?, ?, ?, ?, ?)",
+             (task_id, run_id, word, spaced, cur_time, cur_time, ''))
 
     return task_id
 
@@ -98,9 +109,9 @@ def create_math_task(run_id, complexity):
             expected -= c
     task_id = str(uuid.uuid4())
     cur_time = datetime.timestamp(datetime.now())
-    query_db("INSERT INTO math_exercises (ex_id, run_id, task, expected, task_created, "
-             "last_updated) VALUES (?, ?, ?, ?, ?)",
-             (task_id, run_id, task, expected, cur_time, cur_time))
+    query_db("INSERT INTO math_exercises (task_id, run_id, task, expected, task_created, "
+             "last_updated, result) VALUES (?, ?, ?, ?, ?, ?, ?)",
+             (task_id, run_id, task, expected, cur_time, cur_time, -1))
     return task_id
 
 
@@ -112,14 +123,23 @@ def update_play_time(run_id, task_id):
     """
     run_info = query_db('SELECT * FROM runs WHERE run_id = ?', (run_id,), one=True)
     game_type = run_info['game_type']
+    complexity = run_info['complexity']
     task_info = query_db('SELECT * FROM lingvo_exercises '
                          'WHERE task_id = ?', (task_id,), one=True) if game_type == 'lingvo' \
         else query_db('SELECT * FROM math_exercises '
                       'WHERE task_id = ?', (task_id,), one=True)
-    complexity = task_info['complexity']
     cur_time = datetime.timestamp(datetime.now())
     task_created = task_info['task_created']
-    mined_time = (cur_time - task_created) * complexity
+    time_spent = cur_time - task_created
+    complex_task_time = base_task_time * complexity
+    if 0.8 < time_spent / complex_task_time < 1:
+        complex_task_time *= 1.05
+    elif 0.5 <= time_spent / complex_task_time <= 0.8:
+        complex_task_time *= 1.1
+    elif 0.2 <= time_spent / complex_task_time < 0.5:
+        complex_task_time *= 1.15
+    elif 0.01 < time_spent / complex_task_time < 0.2:
+        complex_task_time *= 1.2
     if game_type == 'lingvo':
         query_db('UPDATE lingvo_exercises '
                  'SET last_updated = ? '
@@ -130,11 +150,11 @@ def update_play_time(run_id, task_id):
                  'WHERE task_id = ?', (cur_time, task_id))
     run_info = query_db('SELECT * FROM runs '
                         'WHERE run_id = ?', (run_id,), one=True)
-    play_time = int(run_info['play_time_sec']) + mined_time
+    play_time = int(run_info['play_time_sec']) + complex_task_time
     query_db('UPDATE runs '
              'SET play_time_sec = ?, runtime = ? '
              'WHERE run_id = ?', (play_time, cur_time, run_id))
-    return mined_time
+    return complex_task_time
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -172,23 +192,25 @@ def lingvo_task(run_id, task_id):
     form = WordForm()
     result = query_db('SELECT word, spaced '
                       'FROM lingvo_exercises '
-                      'WHERE ex_id = ? '
+                      'WHERE task_id = ? '
                       'AND run_id = ?', (task_id, run_id), one=True)
     word = result['word']
     spaced = result['spaced']
+    play_time = query_db('SELECT play_time_sec FROM runs '
+                         'WHERE run_id = ?', (run_id,), one=True)
     if request.method == 'GET':
         task = f'{word[0:spaced]}_{word[spaced + 1:]}'
         form.task = task
-        return render_template('lingvo_game.html', form=form)
+        return render_template('lingvo_game.html', play_time=play_time, form=form)
     answer = form.missed_letter.data
     query_db('UPDATE lingvo_exercises '
              'SET answer = ? '
              'WHERE task_id = ?', (answer, task_id))
     if answer == word[spaced]:
         mined_time = update_play_time(run_id, task_id)
-        flash(f"Correct. Good job! You've mined {mined_time} seconds of playing time.")
+        flash(f"Correct. Good job! You've mined {round(mined_time)} seconds of playing time.")
     else:
-        flash(f"You've mistaken. Correct answer is {answer}.")
+        flash(f"You've mistaken. Correct answer is {word['spaced']}.")
     return redirect(url_for('create_task', run_id=run_id, game_type='lingvo'))
 
 
@@ -197,18 +219,20 @@ def math_task(run_id, task_id):
     form = MathForm()
     task_info = query_db('SELECT task, expected '
                          'FROM math_exercises '
-                         'WHERE ex_id = ? '
+                         'WHERE task_id = ? '
                          'AND run_id = ?', (task_id, run_id), one=True)
+    play_time = query_db('SELECT play_time_sec FROM runs '
+                         'WHERE run_id = ?', (run_id,), one=True)
     if request.method == 'GET':
         form.task = task_info['task']
-        return render_template('math_game.html', form=form)
+        return render_template('math_game.html', play_time=play_time, form=form)
     result = form.result.data
     query_db('UPDATE math_exercises '
              'SET result = ? '
              'WHERE task_id = ?', (result, task_id))
     if int(result) == task_info['expected']:
         mined_time = update_play_time(run_id, task_id)
-        flash(f"Correct. Good job! You've mined {mined_time} seconds of playing time.")
+        flash(f"Correct. Good job! You've mined {round(mined_time)} seconds of playing time.")
     else:
         flash(f"You've mistaken. Correct answer is {task_info['expected']}.")
     return redirect(url_for('create_task', run_id=run_id, game_type='math'))
